@@ -43,7 +43,7 @@ class LinkPrediction():
 
         # Define the model parameters
         n_embed = 256
-        n_hidden = (256, 128, 256, 128)
+        n_hidden = (256, 512, 256, 512)
         n_latent = 64
 
         # Create the model
