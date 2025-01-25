@@ -5,12 +5,23 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: Current File",
+            "name": "Python :: Main (uni)",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}\\src\\main.py",
             "console": "integratedTerminal",
             "python": "C:\\Users\\gerardmr\\.conda\\envs\\kg-link-pred\\python",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Python :: Main (home)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}\\src\\main.py",
+            "console": "integratedTerminal",
+            "python": "C:\\Users\\gerar\\anaconda3\\envs\\neo4j-env\\python",
             "env": {
                 "PYTHONPATH": "${workspaceFolder}"
             }
