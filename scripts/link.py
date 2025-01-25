@@ -61,11 +61,11 @@ class LinkPrediction():
         optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
         # Define the loss function
-        loss_fn = torch.nn.CrossEntropyLoss()
+        loss_cre = torch.nn.CrossEntropyLoss()
         loss_mse = torch.nn.MSELoss()
 
         # Define the number of epochs
-        epochs = 10000
+        epochs = 1000
 
         # Get the links states with the value equals to 1
         value_1_links_states = {key: value for key, value in links_states.items() if value == 1}
@@ -82,11 +82,12 @@ class LinkPrediction():
             x, x_hat, edge_logits, probs, mu, logvar = model(input)
 
             # Get the values which should be 1
-            one_values = probs[np.arange(probs.shape[0]), input].unsqueeze(1)
+            iden = torch.eye(vocab_size)
+            exp_probs = iden[input, :]
 
             # Compute the loss
-            embed_loss = loss_fn(x, x_hat)
-            probs_loss = torch.abs(one_values - torch.ones_like(one_values)).sum()/len(one_values)
+            embed_loss = loss_mse(x, x_hat) # mse or cre?
+            probs_loss = loss_cre(edge_logits, exp_probs)
             loss = embed_loss + probs_loss
 
             # Print the loss
