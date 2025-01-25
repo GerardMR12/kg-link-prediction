@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python :: Main (uni)",
+            "name": "Windows Uni",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}\\src\\main.py",
@@ -16,7 +16,7 @@
             }
         },
         {
-            "name": "Python :: Main (home)",
+            "name": "Windows Home",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}\\src\\main.py",
