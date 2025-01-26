@@ -3,3 +3,6 @@
 
 # Pycache
 __pycache__/
+
+# Models
+*.pth

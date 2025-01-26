@@ -30,10 +30,13 @@ class LinkPrediction():
         vocab_size = len(links_states)
 
         # Create the model
-        model = self.create_model(vocab_size)
+        model = self.create_model(vocab_size).to("cuda")
 
         # Train the model
-        self.train_model(model, links_states, link_to_int, int_to_link, vocab_size)
+        model = self.train_model(model, links_states, link_to_int, int_to_link, vocab_size)
+
+        # Save the model
+        torch.save(model.state_dict(), "link_pred_model.pth")
 
     def create_model(self, vocab_size: int):
         """
@@ -61,11 +64,11 @@ class LinkPrediction():
         optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
         # Define the loss function
-        loss_cre = torch.nn.CrossEntropyLoss()
-        loss_mse = torch.nn.MSELoss()
+        loss_cre = torch.nn.CrossEntropyLoss().to("cuda")
+        loss_mse = torch.nn.MSELoss().to("cuda")
 
         # Define the number of epochs
-        epochs = 1000
+        epochs = 5000
 
         # Get the links states with the value equals to 1
         value_1_links_states = {key: value for key, value in links_states.items() if value == 1}
@@ -76,13 +79,13 @@ class LinkPrediction():
             input = torch.tensor([link_to_int[key] for key in value_1_links_states.keys()])
 
             # Randomly shuffle the indices
-            input = input[torch.randperm(input.size(0))]
+            input = input[torch.randperm(input.size(0))].to("cuda")
 
             # Forward pass
             x, x_hat, edge_logits, probs, mu, logvar = model(input)
 
             # Get the values which should be 1
-            iden = torch.eye(vocab_size)
+            iden = torch.eye(vocab_size).to("cuda")
             exp_probs = iden[input, :]
 
             # Compute the loss
@@ -101,6 +104,8 @@ class LinkPrediction():
 
             # Optimize
             optimizer.step()
+
+        return model
     
     def get_links_vocab(self, graph: GraphInstance):
         """

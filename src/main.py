@@ -1,4 +1,5 @@
 import os
+import torch
 import traceback
 from neo4j import GraphDatabase
 from dotenv import load_dotenv
@@ -20,6 +21,13 @@ if __name__ == "__main__":
 
         # Create a connection
         driver = GraphDatabase.driver(uri, auth=(username, password))
+
+        # Check if CUDA is available
+        print("CUDA available:", torch.cuda.is_available())
+
+        # Check the GPU name
+        if torch.cuda.is_available():
+            print("GPU:", torch.cuda.get_device_name(0))
 
         # Create a graph instance
         graph = GraphInstance(driver, build_graph=False)
