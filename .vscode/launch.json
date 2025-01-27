@@ -13,7 +13,12 @@
             "python": "C:\\Users\\gerardmr\\.conda\\envs\\kg-link-pred\\python",
             "env": {
                 "PYTHONPATH": "${workspaceFolder}"
-            }
+            },
+            "args": [
+                "--conf", "${workspaceFolder}\\src\\configuration.json",
+                "--save", "${workspaceFolder}\\output\\",
+
+            ]
         },
         {
             "name": "Windows Home",

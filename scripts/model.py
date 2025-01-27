@@ -1,15 +1,19 @@
 import torch
 import torch.nn as nn
 
-class LinkPredVAE(nn.Module):
-    def __init__(self, n_embed: int, n_hidden: tuple[int], n_latent: int, vocab_size: int):
-        super(LinkPredVAE, self).__init__()
-        self.n_embed = n_embed
-        self.n_hidden = n_hidden
-        self.n_latent = n_latent
+from scripts.utils import DataFromJSON
+
+class TripletSymmetricVAE(nn.Module):
+    def __init__(self, model_conf: DataFromJSON, vocab_size: int, gpu_device: torch.device = None):
+        super(TripletSymmetricVAE, self).__init__()
+        self.n_embed = model_conf.n_embed
+        self.n_hidden = model_conf.n_hidden
+        self.n_latent = model_conf.n_latent
+        self.epochs = model_conf.epochs
+        self.gpu_device = gpu_device
         self.vocab_size = vocab_size
 
-        self.build_model(n_embed, n_hidden, n_latent, vocab_size)
+        self.build_model(self.n_embed, self.n_hidden, self.n_latent, vocab_size)
 
     def build_model(self, n_embed: int, n_hidden: tuple[int], n_latent: int, vocab_size: int):
         """
@@ -85,3 +89,56 @@ class LinkPredVAE(nn.Module):
         z = self.reparameterize(mu, torch.zeros_like(mu))
         x_hat = torch.sigmoid(self.decoder(z))
         return x_hat
+    
+    def train_model(self, links_states: dict, link_to_int: dict, int_to_link: dict, vocab_size: int):
+        """
+        Train the link prediction model.
+        """
+        print("Training the link prediction model...")
+
+        # Set the model to training mode
+        self.train()
+
+        # Define the optimizer
+        optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
+
+        # Define the loss function
+        loss_cre = torch.nn.CrossEntropyLoss().to(self.gpu_device)
+        loss_mse = torch.nn.MSELoss().to(self.gpu_device)
+
+        # Get the links states with the value equals to 1
+        value_1_links_states = {key: value for key, value in links_states.items() if value == 1}
+
+        # Define the training loop
+        for epoch in range(self.epochs):
+            # Generate random samples
+            input = torch.tensor([link_to_int[key] for key in value_1_links_states.keys()])
+
+            # Randomly shuffle the indices
+            input = input[torch.randperm(input.size(0))].to(self.gpu_device)
+
+            # Forward pass
+            x, x_hat, edge_logits, probs, mu, logvar = self(input)
+
+            # Get the values which should be 1
+            iden = torch.eye(vocab_size).to(self.gpu_device)
+            exp_probs = iden[input, :]
+
+            # Compute the loss
+            embed_loss = loss_mse(x, x_hat) # mse or cre?
+            probs_loss = loss_cre(edge_logits, exp_probs)
+            loss = embed_loss + probs_loss
+
+            # Print the loss
+            print(f"Epoch: {epoch}, Total Loss: {loss.item():.5f}, Embedding Loss: {embed_loss.item():.5f}, Probs Loss: {probs_loss.item():.5f}")
+
+            # Zero the gradients
+            optimizer.zero_grad()
+
+            # Backward pass
+            loss.backward()
+
+            # Optimize
+            optimizer.step()
+
+        return self

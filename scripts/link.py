@@ -1,18 +1,32 @@
+import os
 import math
 import numpy as np
 import torch
 from time import sleep
 
 from scripts.graph import GraphInstance
-from scripts.model import LinkPredVAE
+from scripts.utils import DataFromJSON
+from scripts.model import *
 
 class LinkPrediction():
     """
     Link prediction class, which uses the knowledge graph and creates a model.
     """
-    def __init__(self, graph: GraphInstance, debug: bool = False):
+    def __init__(self, graph: GraphInstance, conf: dict, debug: bool = False, gpu_device: torch.device = None, save_path: str = None):
         self.graph = graph
         self.debug = debug
+        self.gpu_device = gpu_device
+        self.conf = conf
+        self.save_path = save_path
+        self.model_conf = DataFromJSON(conf.models["name" == conf.using], "model_configuration")
+        self.make_output_folder(self.save_path)
+    
+    def make_output_folder(self, path: str):
+        """
+        Make the output folder.
+        """
+        if not os.path.exists(path):
+            os.makedirs(path)
 
     def start(self):
         """
@@ -30,13 +44,13 @@ class LinkPrediction():
         vocab_size = len(links_states)
 
         # Create the model
-        model = self.create_model(vocab_size).to("cuda")
+        model = self.create_model(vocab_size).to(self.gpu_device)
 
         # Train the model
-        model = self.train_model(model, links_states, link_to_int, int_to_link, vocab_size)
+        model = model.train_model(links_states, link_to_int, int_to_link, vocab_size)
 
         # Save the model
-        torch.save(model.state_dict(), "link_pred_model.pth")
+        torch.save(model.state_dict(), self.save_path + self.conf.using + "_trained.pth")
 
     def create_model(self, vocab_size: int):
         """
@@ -44,66 +58,11 @@ class LinkPrediction():
         """
         print("Creating the link prediction model...")
 
-        # Define the model parameters
-        n_embed = 256
-        n_hidden = (256, 512, 256, 512)
-        n_latent = 64
-
-        # Create the model
-        model = LinkPredVAE(n_embed, n_hidden, n_latent, vocab_size)
-
-        return model
-
-    def train_model(self, model: LinkPredVAE, links_states: dict, link_to_int: dict, int_to_link: dict, vocab_size: int):
-        """
-        Train the link prediction model.
-        """
-        print("Training the link prediction model...")
-
-        # Define the optimizer
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-
-        # Define the loss function
-        loss_cre = torch.nn.CrossEntropyLoss().to("cuda")
-        loss_mse = torch.nn.MSELoss().to("cuda")
-
-        # Define the number of epochs
-        epochs = 5000
-
-        # Get the links states with the value equals to 1
-        value_1_links_states = {key: value for key, value in links_states.items() if value == 1}
-
-        # Define the training loop
-        for epoch in range(epochs):
-            # Generate random samples
-            input = torch.tensor([link_to_int[key] for key in value_1_links_states.keys()])
-
-            # Randomly shuffle the indices
-            input = input[torch.randperm(input.size(0))].to("cuda")
-
-            # Forward pass
-            x, x_hat, edge_logits, probs, mu, logvar = model(input)
-
-            # Get the values which should be 1
-            iden = torch.eye(vocab_size).to("cuda")
-            exp_probs = iden[input, :]
-
-            # Compute the loss
-            embed_loss = loss_mse(x, x_hat) # mse or cre?
-            probs_loss = loss_cre(edge_logits, exp_probs)
-            loss = embed_loss + probs_loss
-
-            # Print the loss
-            print(f"Epoch: {epoch}, Total Loss: {loss.item():.5f}, Embedding Loss: {embed_loss.item():.5f}, Probs Loss: {probs_loss.item():.5f}")
-
-            # Zero the gradients
-            optimizer.zero_grad()
-
-            # Backward pass
-            loss.backward()
-
-            # Optimize
-            optimizer.step()
+        # Model name
+        if self.conf.using == "TripletSymmetricVAE":
+            model = TripletSymmetricVAE(self.model_conf, vocab_size, self.gpu_device)
+        else:
+            raise ValueError(f"Model {self.model_name} is not implemented.")
 
         return model
     

@@ -1,0 +1,22 @@
+{
+    "General": {
+        "name": "My App"
+    },
+    "Model": {
+        "using": "TripletSymmetricVAE",
+        "models": [
+            {
+                "name": "TripletSymmetricVAE",
+                "n_embed": 256,
+                "n_hidden": [256, 512, 256, 512],
+                "n_latent": 256,
+                "epochs": 5
+            },
+            {
+                "name": "TripletVAE",
+                "version": "1.0.1",
+                "description": "TripletVAE Description"
+            }
+        ]
+    }
+}
