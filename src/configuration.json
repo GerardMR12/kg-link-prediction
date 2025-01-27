@@ -1,6 +1,7 @@
 {
     "General": {
-        "name": "My App"
+        "name": "My App",
+        "training": false
     },
     "Model": {
         "using": "TripletSymmetricVAE",
@@ -9,8 +10,8 @@
                 "name": "TripletSymmetricVAE",
                 "n_embed": 256,
                 "n_hidden": [256, 512, 256, 512],
-                "n_latent": 256,
-                "epochs": 5
+                "n_latent": 8,
+                "epochs": 5000
             },
             {
                 "name": "TripletVAE",

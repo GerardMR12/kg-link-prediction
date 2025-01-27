@@ -142,3 +142,35 @@ class TripletSymmetricVAE(nn.Module):
             optimizer.step()
 
         return self
+    
+    def inference_model(self, links_states: dict, link_to_int: dict, int_to_link: dict, vocab_size: int):
+        """
+        Evaluate the link prediction model.
+        """
+        print("Evaluating the link prediction model...")
+
+        # Set the model to evaluation mode
+        self.eval()
+
+        # Get the links states with the value equals to 1
+        value_1_links_states = {key: value for key, value in links_states.items() if value == 1}
+
+        # Obtain inputs
+        input = torch.tensor([link_to_int[key] for key in value_1_links_states.keys()])
+
+        # # Print the following links: [1129, 3856, 756]
+        # print(int_to_link[1129], int_to_link[3856], int_to_link[756])
+        # print(links_states[int_to_link[1129]], links_states[int_to_link[3856]], links_states[int_to_link[756]])
+
+        for i in range(input.size(0)):
+            # Forward pass
+            x, x_hat, edge_logits, probs, mu, logvar = self(input[i], noise_factor=1000.0)
+
+            # Obtain top 3 predictions
+            top_3 = torch.topk(probs, 3)
+
+            # Print the top 3 predictions values and indices
+            print("Top 3 predictions values:", [top_3.values[i].item() for i in range(top_3.values.size(0))])
+            print("Top 3 predictions indices:", [top_3.indices[i].item() for i in range(top_3.indices.size(0))])
+
+        return self

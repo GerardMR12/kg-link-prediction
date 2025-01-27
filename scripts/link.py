@@ -47,11 +47,18 @@ class LinkPrediction():
         # Create the model
         model = self.create_model(vocab_size).to(self.gpu_device)
 
-        # Train the model
-        model = model.train_model(links_states, link_to_int, int_to_link, vocab_size)
+        if not self.conf.training:
+            # Load the model
+            model.load_state_dict(torch.load(self.save_path + self.conf.using + "_trained.pth", weights_only=True))
 
-        # Save model
-        self.save_model(model)
+            # Evaluate the model
+            model = model.inference_model(links_states, link_to_int, int_to_link, vocab_size)
+        else:
+            # Train the model
+            model = model.train_model(links_states, link_to_int, int_to_link, vocab_size)
+
+            # Save model
+            self.save_model(model)
 
     def create_model(self, vocab_size: int):
         """
@@ -72,7 +79,7 @@ class LinkPrediction():
         Save the model.
         """
         print("Saving the model...")
-        
+
         # Date and time string
         now = datetime.now()
         dt_string = now.strftime("%Y-%m-%d_%Hh-%Mm")
