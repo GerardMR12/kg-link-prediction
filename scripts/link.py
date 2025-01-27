@@ -3,6 +3,7 @@ import math
 import numpy as np
 import torch
 from time import sleep
+from datetime import datetime
 
 from scripts.graph import GraphInstance
 from scripts.utils import DataFromJSON
@@ -49,8 +50,8 @@ class LinkPrediction():
         # Train the model
         model = model.train_model(links_states, link_to_int, int_to_link, vocab_size)
 
-        # Save the model
-        torch.save(model.state_dict(), self.save_path + self.conf.using + "_trained.pth")
+        # Save model
+        self.save_model(model)
 
     def create_model(self, vocab_size: int):
         """
@@ -65,6 +66,19 @@ class LinkPrediction():
             raise ValueError(f"Model {self.model_name} is not implemented.")
 
         return model
+    
+    def save_model(self, model):
+        """
+        Save the model.
+        """
+        print("Saving the model...")
+        
+        # Date and time string
+        now = datetime.now()
+        dt_string = now.strftime("%Y-%m-%d_%Hh-%Mm")
+
+        # Save the model
+        torch.save(model.state_dict(), self.save_path + self.conf.using + "_trained_" + dt_string + ".pth")
     
     def get_links_vocab(self, graph: GraphInstance):
         """
