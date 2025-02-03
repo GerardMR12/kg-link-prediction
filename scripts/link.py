@@ -36,7 +36,7 @@ class LinkPrediction():
         print("Starting link prediction...")
 
         # Get the vocabulary sets
-        links_states, link_to_int, int_to_link = self.get_links_vocab(self.graph)
+        links_states, link_to_int, int_to_link = self.get_dicts_set(self.graph)
 
         if self.debug:
             print("Lengths of links_states, link_to_int, int_to_link:", len(links_states), len(link_to_int), len(int_to_link))
@@ -45,7 +45,7 @@ class LinkPrediction():
         vocab_size = len(links_states)
 
         # Create the model
-        model = self.create_model(vocab_size).to(self.gpu_device)
+        model = self.create_model().to(self.gpu_device)
 
         if not self.conf.training:
             # Load the model
@@ -60,17 +60,22 @@ class LinkPrediction():
             # Save model
             self.save_model(model)
 
-    def create_model(self, vocab_size: int):
+    def create_model(self):
         """
         Create the link prediction model.
         """
         print("Creating the link prediction model...")
 
+        # Get the vocabulary sets
+        dicts_set = self.get_dicts_set(self.graph, self.model_conf.needed_dicts)
+
         # Model name
         if self.conf.using == "TripletSymmetricVAE":
-            model = TripletSymmetricVAE(self.model_conf, vocab_size, self.gpu_device)
+            model = TripletSymmetricVAE(self.model_conf, self.gpu_device, dicts_set)
+        elif self.conf.using == "PartitionedSymmetricVAE":
+            model = PartRotSymmetricVAE(self.model_conf, self.gpu_device, dicts_set)
         else:
-            raise ValueError(f"Model {self.model_name} is not implemented.")
+            raise ValueError(f"Model {self.conf.using} is not implemented.")
 
         return model
     
@@ -87,40 +92,51 @@ class LinkPrediction():
         # Save the model
         torch.save(model.state_dict(), self.save_path + self.conf.using + "_trained_" + dt_string + ".pth")
     
-    def get_links_vocab(self, graph: GraphInstance):
+    def get_dicts_set(self, graph: GraphInstance, selection: list = None) -> dict:
         """
         Get the links vocabulary.
         """
+        dicts_set = {}
+
+        # Basic features of the graph
         nodes = graph.get_nodes()
         nodes_dict = graph.get_nodes_dict()
         relationships = graph.get_relationships(distinct=True)
         relationships_dict = graph.get_relationships_dict(distinct=True)
         
-        if self.debug:
-            print("We have", len(nodes), "nodes and", len(relationships_dict), "distinc relationships in the graph.")
-            print("This makes a vocabulary of", len(nodes)**2*len(relationships_dict), "elements.")
+        if "nodes" in selection:
+            dicts_set["nodes"] = nodes_dict
+        if "relationships" in selection:
+            relationships_dict = graph.get_relationships_dict(distinct=True)
+            dicts_set["relationships"] = relationships_dict
+        if "links_states" in selection:
+            # Find the links in the graph
+            links = graph.get_links()
+            links_states = {}
+            idx = 0
+            for node1 in nodes:
+                for node2 in nodes:
+                    for relationship in relationships:
+                        links_states[(node1, relationship, node2)] = 1 if (node1, relationship, node2) in links else 0
+                        idx += 1
+            dicts_set["links_states"] = links_states
+        if "link_to_int" in selection:
+            link_to_int = {}
+            idx = 0
+            for node1 in nodes:
+                for node2 in nodes:
+                    for relationship in relationships:
+                        link_to_int[(node1, relationship, node2)] = idx
+                        idx += 1
+            dicts_set["link_to_int"] = link_to_int
+        if "int_to_link" in selection:
+            int_to_link = {}
+            idx = 0
+            for node1 in nodes:
+                for node2 in nodes:
+                    for relationship in relationships:
+                        int_to_link[idx] = (node1, relationship, node2)
+                        idx += 1
+            dicts_set["int_to_link"] = int_to_link
 
-        # Find the links in the graph
-        links = graph.get_links()
-
-        # Create a dictionary of all possible relationships
-        links_states = {}
-        link_to_int = {}
-        int_to_link = {}
-        idx = 0
-        for node1 in nodes:
-            for node2 in nodes:
-                for relationship in relationships:
-                    links_states[(node1, relationship, node2)] = 1 if (node1, relationship, node2) in links else 0
-                    link_to_int[(node1, relationship, node2)] = idx
-                    int_to_link[idx] = (node1, relationship, node2)
-                    idx += 1
-
-        # Count the existing links
-        existing_links = {key: value for key, value in links_states.items() if value == 1}
-
-        if self.debug:
-            print("We have", len(links_states), "possible relationships in the graph and", len(existing_links), " of them exist.")
-            print("These are the existing links in the graph:", existing_links)
-
-        return links_states, link_to_int, int_to_link
+        return dicts_set
