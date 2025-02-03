@@ -8,15 +8,19 @@
         "models": [
             {
                 "name": "TripletSymmetricVAE",
+                "needed_dicts": ["links_states", "link_to_int", "int_to_link"],
                 "n_embed": 256,
                 "n_hidden": [256, 512, 256, 512],
                 "n_latent": 8,
                 "epochs": 5000
             },
             {
-                "name": "TripletVAE",
-                "version": "1.0.1",
-                "description": "TripletVAE Description"
+                "name": "TripletSymmetricVAE",
+                "needed_dicts": [],
+                "n_embed": 256,
+                "n_hidden": [256, 512, 256, 512],
+                "n_latent": 8,
+                "epochs": 5000
             }
         ]
     }

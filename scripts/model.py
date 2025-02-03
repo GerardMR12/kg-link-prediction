@@ -4,16 +4,17 @@ import torch.nn as nn
 from scripts.utils import DataFromJSON
 
 class TripletSymmetricVAE(nn.Module):
-    def __init__(self, model_conf: DataFromJSON, vocab_size: int, gpu_device: torch.device = None):
+    def __init__(self, model_conf: DataFromJSON, gpu_device: torch.device = None, dicts_set: dict = None):
         super(TripletSymmetricVAE, self).__init__()
         self.n_embed = model_conf.n_embed
         self.n_hidden = model_conf.n_hidden
         self.n_latent = model_conf.n_latent
         self.epochs = model_conf.epochs
         self.gpu_device = gpu_device
-        self.vocab_size = vocab_size
+        self.dicts_set = dicts_set
+        self.vocab_size = len(dicts_set["links_states"])
 
-        self.build_model(self.n_embed, self.n_hidden, self.n_latent, vocab_size)
+        self.build_model(self.n_embed, self.n_hidden, self.n_latent, self.vocab_size)
 
     def build_model(self, n_embed: int, n_hidden: tuple[int], n_latent: int, vocab_size: int):
         """
@@ -158,10 +159,6 @@ class TripletSymmetricVAE(nn.Module):
         # Obtain inputs
         input = torch.tensor([link_to_int[key] for key in value_1_links_states.keys()])
 
-        # # Print the following links: [1129, 3856, 756]
-        # print(int_to_link[1129], int_to_link[3856], int_to_link[756])
-        # print(links_states[int_to_link[1129]], links_states[int_to_link[3856]], links_states[int_to_link[756]])
-
         for i in range(input.size(0)):
             # Forward pass
             x, x_hat, edge_logits, probs, mu, logvar = self(input[i], noise_factor=1000.0)
@@ -174,3 +171,13 @@ class TripletSymmetricVAE(nn.Module):
             print("Top 3 predictions indices:", [top_3.indices[i].item() for i in range(top_3.indices.size(0))])
 
         return self
+    
+class PartRotSymmetricVAE(nn.Module):
+    def __init__(self, model_conf: DataFromJSON, gpu_device: torch.device = None, dicts_set: dict = None):
+        super(PartRotSymmetricVAE, self).__init__()
+        self.n_embed = model_conf.n_embed
+        self.n_hidden = model_conf.n_hidden
+        self.n_latent = model_conf.n_latent
+        self.epochs = model_conf.epochs
+        self.gpu_device = gpu_device
+        self.dicts_set = dicts_set

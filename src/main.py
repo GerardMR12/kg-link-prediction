@@ -1,11 +1,8 @@
 import os
-<<<<<<< HEAD
 import json
 import torch
 import argparse
-=======
 import torch
->>>>>>> 41c3419 (Merge with Linux version)
 import traceback
 
 from neo4j import GraphDatabase
