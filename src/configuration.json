@@ -16,7 +16,7 @@
             },
             {
                 "name": "TripletSymmetricVAE",
-                "needed_dicts": [],
+                "needed_dicts": ["nodes"],
                 "n_embed": 256,
                 "n_hidden": [256, 512, 256, 512],
                 "n_latent": 8,
