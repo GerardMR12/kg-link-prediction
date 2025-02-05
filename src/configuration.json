@@ -21,6 +21,14 @@
                 "n_hidden": [256, 512, 256, 512],
                 "n_latent": 8,
                 "epochs": 5000
+            },
+            {
+                "name": "RotTransformer",
+                "needed_dicts": ["nodes"],
+                "n_embed": 256,
+                "triplet_trans_heads": 10,
+                "triplet_trans_layers": 6, 
+                "epochs": 5000
             }
         ]
     }

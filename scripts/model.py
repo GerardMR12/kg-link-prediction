@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from kg_objects import Entity, Relation
 
 from scripts.utils import DataFromJSON
 
@@ -184,11 +185,21 @@ class PartRotSymmetricVAE(nn.Module):
 
 class RotTransformer(nn.module):
     def __init__(self, model_conf: DataFromJSON, gpu_device: torch.device = None, dicts_set: dict = None):
-        super(PartRotSymmetricVAE, self).__init__()
+        super(RotTransformer, self).__init__()
+        ## Triplet Transformer Attributes
+        self.triplet_trans_heads =  model_conf.triplet_trans_heads
+        self.triplet_trans_layers = model_conf.triplet_trans_layers
+
+        ## Graph Transformer Attributes
+
+        ## Overall Model Settings
         self.n_embed = model_conf.n_embed
-        self.n_hidden = model_conf.n_hidden
-        self.n_latent = model_conf.n_latent
-        self.n_kq = model_conf.n_kq
         self.epochs = model_conf.epochs
         self.gpu_device = gpu_device
         self.dicts_set = dicts_set
+
+    def triplet_encoder(self, triplet: [Entity]):
+        triplet = [e.rotate for e in triplet if isinstance(e, Entity)]
+        encoder_layer = nn.TransformerEncoderLayer(self.n_embed, self.triplet_trans_heads)
+        transformer_encoder = nn.TransformerEncoder(encoder_layer, self.triplet_trans_layers)
+        out = transformer_encoder(triplet) # check if triplet is correct size as an input
