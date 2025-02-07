@@ -35,15 +35,6 @@ class LinkPrediction():
         """
         print("Starting link prediction...")
 
-        # Get the vocabulary sets
-        links_states, link_to_int, int_to_link = self.get_dicts_set(self.graph)
-
-        if self.debug:
-            print("Lengths of links_states, link_to_int, int_to_link:", len(links_states), len(link_to_int), len(int_to_link))
-
-        # Get the vocabulary size
-        vocab_size = len(links_states)
-
         # Create the model
         model = self.create_model().to(self.gpu_device)
 
@@ -52,10 +43,10 @@ class LinkPrediction():
             model.load_state_dict(torch.load(self.save_path + self.conf.using + "_trained.pth", weights_only=True))
 
             # Evaluate the model
-            model = model.inference_model(links_states, link_to_int, int_to_link, vocab_size)
+            model = model.inference_model(noise_factor=self.model_conf.inference_noise)
         else:
             # Train the model
-            model = model.train_model(links_states, link_to_int, int_to_link, vocab_size)
+            model = model.train_model()
 
             # Save model
             self.save_model(model)

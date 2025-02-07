@@ -12,15 +12,17 @@
                 "n_embed": 256,
                 "n_hidden": [256, 512, 256, 512],
                 "n_latent": 8,
-                "epochs": 5000
+                "epochs": 5000,
+                "inference_noise": 5.0
             },
             {
-                "name": "TripletSymmetricVAE",
+                "name": "PartRotSymmetricVAE",
                 "needed_dicts": ["nodes"],
-                "n_embed": 256,
+                "n_embed_sect": 64,
                 "n_hidden": [256, 512, 256, 512],
                 "n_latent": 8,
-                "epochs": 5000
+                "epochs": 5000,
+                "inference_noise": 5.0
             },
             {
                 "name": "RotTransformer",

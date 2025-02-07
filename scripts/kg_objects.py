@@ -1,19 +1,29 @@
 import numpy as np
 
 class Entity():
-    
-    def __init__(self,
-                 args) -> None :
-        """
-        EXAOPLATION
+    """
+    Class to represent a specific entity in the knowledge graph.
+    """
+    def __init__(self, *args) -> None :
+        pass
 
-        VARIABLES:
-            - X : ASJHKDASKJDHAS
-        """
+class EntityType():
+    """
+    Class to represent a general entity in the knowledge graph (not id-specific).
+    """
+    def __init__(self, *args) -> None :
         pass
 
 class Relation():
-    
-    def __init__(self,
-                 args) -> None :
+    """
+    Class to represent a specific relation in the knowledge graph.
+    """
+    def __init__(self, *args) -> None :
+        pass
+
+class RelationType():
+    """
+    Class to represent a general relation in the knowledge graph (not link-specific).
+    """
+    def __init__(self, *args) -> None :
         pass    

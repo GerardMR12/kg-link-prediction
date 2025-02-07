@@ -19,7 +19,7 @@ class TripletSymmetricVAE(nn.Module):
 
     def build_model(self, n_embed: int, n_hidden: tuple[int], n_latent: int, vocab_size: int):
         """
-        Build the encoder, decoder, and edge decoder networks.
+        Build the embedding, encoder, decoder, and projector networks.
         """
         # Embedding layer
         self.embed = nn.Embedding(vocab_size, n_embed)
@@ -41,16 +41,28 @@ class TripletSymmetricVAE(nn.Module):
             decoder_layers.append(nn.ReLU())
         self.decoder = nn.Sequential(*decoder_layers)
 
-        # Edge decoder
-        edge_hidden = int((n_embed + vocab_size) / 2)
-        edge_hidden = max(edge_hidden, 2*n_embed)
-        self.edge_decoder = nn.Sequential(
-            nn.Linear(n_latent, edge_hidden),
-            nn.Linear(edge_hidden, vocab_size)
+        # Projector
+        proj_hidden = int((n_embed + vocab_size) / 2)
+        proj_hidden = max(proj_hidden, 2*n_embed)
+        self.projector = nn.Sequential(
+            nn.Linear(n_latent, proj_hidden),
+            nn.Linear(proj_hidden, vocab_size)
         )
 
-        # Softmax layer for edge probabilities
+        # Softmax layer for probability calculation
         self.softmax = nn.Softmax(dim=-1)
+
+        # Initialize the weights
+        self.init_weights()
+
+    def init_weights(self):
+        """
+        Initialize the weights of the model.
+        """
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.kaiming_uniform_(m.weight)
+                nn.init.zeros_(m.bias)
 
     def forward(self, idx, noise_factor: float = 1.0):
         """
@@ -60,9 +72,9 @@ class TripletSymmetricVAE(nn.Module):
         mu, logvar = self.encoder(x).chunk(2, dim=-1)
         z = self.reparameterize(mu, logvar, noise_factor)
         x_hat = self.decoder(z)
-        edge_logits = self.edge_decoder(z)
-        probs = self.softmax(edge_logits)
-        return x, x_hat, edge_logits, probs, mu, logvar
+        logits = self.projector(z)
+        probs = self.softmax(logits)
+        return x, x_hat, logits, probs, mu, logvar
 
     def reparameterize(self, mu, logvar, noise_factor: float = 1.0):
         """
@@ -71,28 +83,8 @@ class TripletSymmetricVAE(nn.Module):
         std = torch.exp(0.5 * logvar)
         eps = torch.randn_like(std) * noise_factor
         return mu + eps * std
-
-    def loss(self, x, x_hat, edge_logits, mu, logvar):
-        x_loss = nn.functional.binary_cross_entropy_with_logits(x_hat, x, reduction='sum')
-        edge_loss = nn.functional.binary_cross_entropy_with_logits(edge_logits, x.new_zeros(x.shape), reduction='sum')
-        kl_div = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-        return x_loss + edge_loss + kl_div
-
-    def generate(self, n_samples):
-        """
-        Generate samples from the model.
-        """
-        z = torch.randn(n_samples, self.n_latent)
-        x = torch.sigmoid(self.decoder(z))
-        return x
-
-    def reconstruct(self, x):
-        mu, _ = self.encoder(x).chunk(2, dim=1)
-        z = self.reparameterize(mu, torch.zeros_like(mu))
-        x_hat = torch.sigmoid(self.decoder(z))
-        return x_hat
     
-    def train_model(self, links_states: dict, link_to_int: dict, int_to_link: dict, vocab_size: int):
+    def train_model(self):
         """
         Train the link prediction model.
         """
@@ -109,26 +101,26 @@ class TripletSymmetricVAE(nn.Module):
         loss_mse = torch.nn.MSELoss().to(self.gpu_device)
 
         # Get the links states with the value equals to 1
-        value_1_links_states = {key: value for key, value in links_states.items() if value == 1}
+        value_1_links_states = {key: value for key, value in self.dicts["links_states"].items() if value == 1}
 
         # Define the training loop
         for epoch in range(self.epochs):
             # Generate random samples
-            input = torch.tensor([link_to_int[key] for key in value_1_links_states.keys()])
+            input = torch.tensor([self.dicts["link_to_int"][key] for key in value_1_links_states.keys()])
 
             # Randomly shuffle the indices
             input = input[torch.randperm(input.size(0))].to(self.gpu_device)
 
             # Forward pass
-            x, x_hat, edge_logits, probs, mu, logvar = self(input)
+            x, x_hat, logits, probs, mu, logvar = self(input)
 
             # Get the values which should be 1
-            iden = torch.eye(vocab_size).to(self.gpu_device)
+            iden = torch.eye(self.vocab_size).to(self.gpu_device)
             exp_probs = iden[input, :]
 
             # Compute the loss
             embed_loss = loss_mse(x, x_hat) # mse or cre?
-            probs_loss = loss_cre(edge_logits, exp_probs)
+            probs_loss = loss_cre(logits, exp_probs)
             loss = embed_loss + probs_loss
 
             # Print the loss
@@ -145,7 +137,7 @@ class TripletSymmetricVAE(nn.Module):
 
         return self
     
-    def inference_model(self, links_states: dict, link_to_int: dict, int_to_link: dict, vocab_size: int):
+    def inference_model(self, noise_factor: float = 1.0):
         """
         Evaluate the link prediction model.
         """
@@ -155,14 +147,14 @@ class TripletSymmetricVAE(nn.Module):
         self.eval()
 
         # Get the links states with the value equals to 1
-        value_1_links_states = {key: value for key, value in links_states.items() if value == 1}
+        value_1_links_states = {key: value for key, value in self.dicts["links_states"].items() if value == 1}
 
         # Obtain inputs
-        input = torch.tensor([link_to_int[key] for key in value_1_links_states.keys()])
+        input = torch.tensor([self.dicts["link_to_int"][key] for key in value_1_links_states.keys()])
 
         for i in range(input.size(0)):
             # Forward pass
-            x, x_hat, edge_logits, probs, mu, logvar = self(input[i], noise_factor=1000.0)
+            x, x_hat, logits, probs, mu, logvar = self(input[i], noise_factor=noise_factor)
 
             # Obtain top 3 predictions
             top_3 = torch.topk(probs, 3)
@@ -176,12 +168,108 @@ class TripletSymmetricVAE(nn.Module):
 class PartRotSymmetricVAE(nn.Module):
     def __init__(self, model_conf: DataFromJSON, gpu_device: torch.device = None, dicts_set: dict = None):
         super(PartRotSymmetricVAE, self).__init__()
-        self.n_embed = model_conf.n_embed
+        self.n_embed_sect = model_conf.n_embed_sect
         self.n_hidden = model_conf.n_hidden
         self.n_latent = model_conf.n_latent
         self.epochs = model_conf.epochs
         self.gpu_device = gpu_device
         self.dicts_set = dicts_set
+        self.entity_vocab_size = len(dicts_set["nodes_dict"])
+        self.relation_vocab_size = len(dicts_set["relationships_dict"])
+
+        self.build_model(self.n_embed_sect, self.n_hidden, self.n_latent, self.entity_vocab_size, self.relation_vocab_size)
+
+    def build_model(self, n_embed_sect: int, n_hidden: tuple[int], n_latent: int, entity_vocab_size: int, relation_vocab_size: int):
+        """
+        Build the embedding, encoder, decoder, and projector networks.
+        """
+        # Embedding layer
+        self.entity_embed = nn.Embedding(entity_vocab_size, n_embed_sect)
+        self.relation_embed = nn.Embedding(relation_vocab_size, n_embed_sect)
+        n_embed = n_embed_sect * 3
+
+        # Encoder
+        encoder_layers = []
+        n_hidden_enc = [n_embed] + list(n_hidden)
+        for i in range(len(n_hidden_enc) - 1):
+            encoder_layers.append(nn.Linear(n_hidden_enc[i], n_hidden_enc[i + 1]))
+            encoder_layers.append(nn.ReLU())
+        encoder_layers.append(nn.Linear(n_hidden_enc[-1], n_latent * 2))
+        self.encoder = nn.Sequential(*encoder_layers)
+
+        # Decoder
+        decoder_layers = []
+        n_hidden_dec = [n_latent] + list(n_hidden)[::-1] + [n_embed]
+        for i in range(len(n_hidden_dec) - 1):
+            decoder_layers.append(nn.Linear(n_hidden_dec[i], n_hidden_dec[i + 1]))
+            decoder_layers.append(nn.ReLU())
+        self.decoder = nn.Sequential(*decoder_layers)
+
+        # Projector of the first entity
+        proj_hidden = int((n_embed + entity_vocab_size) / 2)
+        proj_hidden = max(proj_hidden, 2*n_embed)
+        self.projector_ent1 = nn.Sequential(
+            nn.Linear(n_latent, proj_hidden),
+            nn.Linear(proj_hidden, entity_vocab_size)
+        )
+
+        # Projector of the relation
+        proj_hidden = int((n_embed + relation_vocab_size) / 2)
+        proj_hidden = max(proj_hidden, 2*n_embed)
+        self.projector_rel = nn.Sequential(
+            nn.Linear(n_latent, proj_hidden),
+            nn.Linear(proj_hidden, relation_vocab_size)
+        )
+
+        # Projector of the second entity
+        proj_hidden = int((n_embed + entity_vocab_size) / 2)
+        proj_hidden = max(proj_hidden, 2*n_embed)
+        self.projector_ent2 = nn.Sequential(
+            nn.Linear(n_latent, proj_hidden),
+            nn.Linear(proj_hidden, entity_vocab_size)
+        )
+
+        # Softmax layer for probability calculation
+        self.softmax = nn.Softmax(dim=-1)
+
+        # Initialize the weights
+        self.init_weights()
+
+    def init_weights(self):
+        """
+        Initialize the weights of the model.
+        """
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.kaiming_uniform_(m.weight)
+                nn.init.zeros_(m.bias)
+
+    def forward(self, idx_ent1, idx_rel, idx_ent2, noise_factor: float = 1.0):
+        """
+        Forward pass through the model.
+        """
+        x = torch.cat((self.entity_embed(idx_ent1), self.relation_embed(idx_rel), self.entity_embed(idx_ent2)), dim=-1)
+        mu, logvar = self.encoder(x).chunk(2, dim=-1)
+        z = self.reparameterize(mu, logvar, noise_factor)
+        x_hat = self.decoder(z)
+
+        logits_ent1 = self.projector_ent1(z)
+        probs_ent1 = self.softmax(logits_ent1)
+
+        logits_rel = self.projector_rel(z)
+        probs_rel = self.softmax(logits_rel)
+        
+        logits_ent2 = self.projector_ent2(z)
+        probs_ent2 = self.softmax(logits_ent2)
+        return x, x_hat, (logits_ent1, logits_rel, logits_ent2), (probs_ent1, probs_rel, probs_ent2), mu, logvar
+
+    def reparameterize(self, mu, logvar, noise_factor: float = 1.0):
+        """
+        Reparameterization trick for sampling from a Gaussian.
+        """
+        std = torch.exp(0.5 * logvar)
+        eps = torch.randn_like(std) * noise_factor
+        return mu + eps * std
 
 class RotTransformer(nn.module):
     def __init__(self, model_conf: DataFromJSON, gpu_device: torch.device = None, dicts_set: dict = None):
@@ -198,7 +286,7 @@ class RotTransformer(nn.module):
         self.gpu_device = gpu_device
         self.dicts_set = dicts_set
 
-    def triplet_encoder(self, triplet: [Entity]):
+    def triplet_encoder(self, triplet: list[Entity]):
         triplet = [e.rotate for e in triplet if isinstance(e, Entity)]
         encoder_layer = nn.TransformerEncoderLayer(self.n_embed, self.triplet_trans_heads)
         transformer_encoder = nn.TransformerEncoder(encoder_layer, self.triplet_trans_layers)

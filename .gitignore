@@ -7,5 +7,5 @@ __pycache__/
 # Models
 *.pth
 
-# Launch file
-.vscode/launch.json
+# Visual Studio Code
+.vscode/
