@@ -4,7 +4,7 @@
         "training": false
     },
     "Model": {
-        "using": "TripletSymmetricVAE",
+        "using": "PartRotSymmetricVAE",
         "models": [
             {
                 "name": "TripletSymmetricVAE",
@@ -17,16 +17,16 @@
             },
             {
                 "name": "PartRotSymmetricVAE",
-                "needed_dicts": ["nodes"],
-                "n_embed_sect": 64,
-                "n_hidden": [256, 512, 256, 512],
+                "needed_dicts": ["entity_to_int", "relationship_to_int", "links_states"],
+                "n_embed_sect": 32,
+                "n_hidden": [128, 128],
                 "n_latent": 8,
                 "epochs": 5000,
                 "inference_noise": 5.0
             },
             {
                 "name": "RotTransformer",
-                "needed_dicts": ["nodes"],
+                "needed_dicts": [],
                 "n_embed": 256,
                 "triplet_trans_heads": 10,
                 "triplet_trans_layers": 6, 

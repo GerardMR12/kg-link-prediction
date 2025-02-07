@@ -80,6 +80,10 @@ class LinkPrediction():
         now = datetime.now()
         dt_string = now.strftime("%Y-%m-%d_%Hh-%Mm")
 
+        # Ensure path exists
+        if not os.path.exists(self.save_path):
+            os.makedirs(self.save_path)
+
         # Save the model
         torch.save(model.state_dict(), self.save_path + self.conf.using + "_trained_" + dt_string + ".pth")
     
@@ -90,43 +94,43 @@ class LinkPrediction():
         dicts_set = {}
 
         # Basic features of the graph
-        nodes = graph.get_nodes()
-        nodes_dict = graph.get_nodes_dict()
+        entities = graph.get_entities()
+        entities_dict = graph.get_entities_dict()
         relationships = graph.get_relationships(distinct=True)
         relationships_dict = graph.get_relationships_dict(distinct=True)
         
-        if "nodes" in selection:
-            dicts_set["nodes"] = nodes_dict
-        if "relationships" in selection:
+        if "entity_to_int" in selection:
+            dicts_set["entity_to_int"] = entities_dict
+        if "relationship_to_int" in selection:
             relationships_dict = graph.get_relationships_dict(distinct=True)
-            dicts_set["relationships"] = relationships_dict
+            dicts_set["relationship_to_int"] = relationships_dict
         if "links_states" in selection:
             # Find the links in the graph
             links = graph.get_links()
             links_states = {}
             idx = 0
-            for node1 in nodes:
-                for node2 in nodes:
+            for ent1 in entities:
+                for ent2 in entities:
                     for relationship in relationships:
-                        links_states[(node1, relationship, node2)] = 1 if (node1, relationship, node2) in links else 0
+                        links_states[(ent1, relationship, ent2)] = 1 if (ent1, relationship, ent2) in links else 0
                         idx += 1
             dicts_set["links_states"] = links_states
         if "link_to_int" in selection:
             link_to_int = {}
             idx = 0
-            for node1 in nodes:
-                for node2 in nodes:
+            for ent1 in entities:
+                for ent2 in entities:
                     for relationship in relationships:
-                        link_to_int[(node1, relationship, node2)] = idx
+                        link_to_int[(ent1, relationship, ent2)] = idx
                         idx += 1
             dicts_set["link_to_int"] = link_to_int
         if "int_to_link" in selection:
             int_to_link = {}
             idx = 0
-            for node1 in nodes:
-                for node2 in nodes:
+            for ent1 in entities:
+                for ent2 in entities:
                     for relationship in relationships:
-                        int_to_link[idx] = (node1, relationship, node2)
+                        int_to_link[idx] = (ent1, relationship, ent2)
                         idx += 1
             dicts_set["int_to_link"] = int_to_link
 

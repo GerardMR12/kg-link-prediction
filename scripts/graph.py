@@ -13,7 +13,7 @@ class GraphInstance():
             return result.data()
         
     def build_graph(self):
-        # Delete all nodes and relationships
+        # Delete all entities and relationships
         cypher_query = """
         MATCH (n)
         DETACH DELETE n
@@ -146,7 +146,7 @@ class GraphInstance():
         for query in merging_queries:
             self.run_query(query)
 
-    def get_nodes(self):
+    def get_entities(self):
         query = """
         MATCH (n)
         WHERE n is NOT NULL
@@ -155,9 +155,9 @@ class GraphInstance():
         result = self.run_query(query)
         return [record["n"]["name"] for record in result]
     
-    def get_nodes_dict(self):
-        nodes = self.get_nodes()
-        return {node: idx for idx, node in enumerate(nodes)}
+    def get_entities_dict(self):
+        entities = self.get_entities()
+        return {entity: idx for idx, entity in enumerate(entities)}
     
     def get_links(self):
         query = """

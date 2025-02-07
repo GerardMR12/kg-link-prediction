@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
-from kg_objects import Entity, Relation
 
+
+from scripts.kg_objects import Entity, Relation
 from scripts.utils import DataFromJSON
 
 class TripletSymmetricVAE(nn.Module):
@@ -121,7 +122,7 @@ class TripletSymmetricVAE(nn.Module):
             # Compute the loss
             embed_loss = loss_mse(x, x_hat) # mse or cre?
             probs_loss = loss_cre(logits, exp_probs)
-            loss = embed_loss + probs_loss
+            loss: torch.Tensor = embed_loss + probs_loss
 
             # Print the loss
             print(f"Epoch: {epoch}, Total Loss: {loss.item():.5f}, Embedding Loss: {embed_loss.item():.5f}, Probs Loss: {probs_loss.item():.5f}")
@@ -258,7 +259,7 @@ class PartRotSymmetricVAE(nn.Module):
 
         logits_rel = self.projector_rel(z)
         probs_rel = self.softmax(logits_rel)
-        
+
         logits_ent2 = self.projector_ent2(z)
         probs_ent2 = self.softmax(logits_ent2)
         return x, x_hat, (logits_ent1, logits_rel, logits_ent2), (probs_ent1, probs_rel, probs_ent2), mu, logvar
@@ -271,7 +272,85 @@ class PartRotSymmetricVAE(nn.Module):
         eps = torch.randn_like(std) * noise_factor
         return mu + eps * std
 
-class RotTransformer(nn.module):
+    def train_model(self):
+        """
+        Train the link prediction model.
+        """
+        print("Training the link prediction model...")
+
+        # Set the model to training mode
+        self.train()
+
+        # Define the optimizer
+        optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
+
+        # Define the loss function
+        loss_cre = torch.nn.CrossEntropyLoss().to(self.gpu_device)
+        loss_mse = torch.nn.MSELoss().to(self.gpu_device)
+
+        # Get the indices of the entities and relationships from links states with the value equals to 1
+        triads = []
+        for i, key, value in enumerate(self.dicts["links_states"].items()):
+            value_1_links_states = {key: value}
+            if value > 1e5:
+                break
+            
+        value_1_links_states = {key: value for key, value in self.dicts["links_states"].items() if value == 1}
+        for key, value in value_1_links_states.items():
+            ent1_idx = torch.tensor(self.dicts["node_to_int"][key[0]])
+            rel_idx = torch.tensor(self.dicts["relationship_to_int"][key[1]])
+            ent2_idx = torch.tensor(self.dicts["node_to_int"][key[2]])
+            triads = triads + [ent1_idx, rel_idx, ent2_idx]
+
+        # Convert the triads to a tensor
+        triads = torch.tensor(triads).to(self.gpu_device)
+
+        # Define the training loop
+        for epoch in range(self.epochs):
+            # Randomly sample the triads
+            input = triads[torch.randperm(triads.size(0))]
+
+            # Forward pass
+            x, x_hat, logits, probs, mu, logvar = self(input)
+            ent1_logits, rel_logits, ent2_logits = logits
+
+            # Get the values which should be 1
+            iden = torch.eye(self.vocab_size).to(self.gpu_device)
+            ent1_exp_probs = iden[input[:, 0], :]
+            rel_exp_probs = iden[input[:, 1], :]
+            ent2_exp_probs = iden[input[:, 2], :]
+
+            # Compute the loss
+            embed_loss = loss_mse(x, x_hat) # mse or cre?
+            ent1_probs_loss = loss_cre(ent1_logits, ent1_exp_probs)
+            rel_probs_loss = loss_cre(rel_logits, rel_exp_probs)
+            ent2_probs_loss = loss_cre(ent2_logits, ent2_exp_probs)
+            loss: torch.Tensor = embed_loss + ent1_probs_loss + rel_probs_loss + ent2_probs_loss
+
+            # Print the loss
+            print(f"Epoch: {epoch}, Total Loss: {loss.item():.5f}, Embedding Loss: {embed_loss.item():.5f}, Ent1 Probs Loss: {ent1_probs_loss.item():.5f}, Rel Probs Loss: {rel_probs_loss.item():.5f}, Ent2 Probs Loss: {ent2_probs_loss.item():.5f}")
+
+            # Zero the gradients
+            optimizer.zero_grad()
+
+            # Backward pass
+            loss.backward()
+
+            # Optimize
+            optimizer.step()
+
+        return self
+    
+    def inference_model(self, noise_factor: float = 1.0):
+        """
+        Evaluate the link prediction model.
+        """
+        print("Evaluating the link prediction model...")
+
+        # Set the model to evaluation mode
+        self.eval()
+
+class RotTransformer(nn.Module):
     def __init__(self, model_conf: DataFromJSON, gpu_device: torch.device = None, dicts_set: dict = None):
         super(RotTransformer, self).__init__()
         ## Triplet Transformer Attributes
