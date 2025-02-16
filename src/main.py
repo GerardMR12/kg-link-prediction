@@ -41,16 +41,11 @@ if __name__ == "__main__":
         load_dotenv()
         creden[".env"] = {"uri": os.getenv("NEO4J_URI"), "username": os.getenv("NEO4J_USERNAME"), "password": os.getenv("NEO4J_PASSWORD")}
 
-        # Define connection details
-        uri = os.getenv(creden[conf.using_graph]["uri"])
-        username = os.getenv(creden[conf.using_graph]["username"])
-        password = os.getenv(creden[conf.using_graph]["password"])
-
         # Debug flag
         debug = False
 
         # Create a connection
-        driver = GraphDatabase.driver(uri, auth=(username, password))
+        driver = GraphDatabase.driver(creden[conf.using_graph]["uri"], auth=(creden[conf.using_graph]["username"], creden[conf.using_graph]["password"]))
 
         # Create a graph instance
         graph = GraphInstance(driver, build_graph=False)

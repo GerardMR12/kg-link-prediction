@@ -1,7 +1,7 @@
 {
     "General": {
         "name": "My App",
-        "training": false,
+        "training": true,
         "using_graph": "neoflix"
     },
     "Model": {
