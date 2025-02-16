@@ -13,20 +13,6 @@ from scripts.link import LinkPrediction
 
 if __name__ == "__main__":
     try:
-        # Load environment variables
-        load_dotenv()
-
-        # Define connection details
-        uri = os.getenv("NEO4J_URI")
-        username = os.getenv("NEO4J_USERNAME")
-        password = os.getenv("NEO4J_PASSWORD")
-
-        # Debug flag
-        debug = False
-
-        # Create a connection
-        driver = GraphDatabase.driver(uri, auth=(username, password))
-
         # Check if CUDA is available
         print("CUDA available:", torch.cuda.is_available())
 
@@ -46,6 +32,25 @@ if __name__ == "__main__":
         with open(args.conf, "r") as file:
             json_dict = json.load(file)
             conf = DataFromJSON(json_dict, "configuration_file")
+
+        # Set the public credentials
+        creden = {}
+        creden["neoflix"] = {"uri": "neo4j+s://demo.neo4jlabs.com", "username": "neoflix", "password": "neoflix"}
+
+        # Set the private credentials (given in .env file)
+        load_dotenv()
+        creden[".env"] = {"uri": os.getenv("NEO4J_URI"), "username": os.getenv("NEO4J_USERNAME"), "password": os.getenv("NEO4J_PASSWORD")}
+
+        # Define connection details
+        uri = os.getenv(creden[conf.using_graph]["uri"])
+        username = os.getenv(creden[conf.using_graph]["username"])
+        password = os.getenv(creden[conf.using_graph]["password"])
+
+        # Debug flag
+        debug = False
+
+        # Create a connection
+        driver = GraphDatabase.driver(uri, auth=(username, password))
 
         # Create a graph instance
         graph = GraphInstance(driver, build_graph=False)
