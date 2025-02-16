@@ -1,7 +1,8 @@
 {
     "General": {
         "name": "My App",
-        "training": false
+        "training": false,
+        "using_graph": "neoflix"
     },
     "Model": {
         "using": "PartRotSymmetricVAE",
