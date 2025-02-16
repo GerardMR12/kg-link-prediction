@@ -2,7 +2,7 @@
     "General": {
         "name": "My App",
         "training": true,
-        "using_graph": "neoflix"
+        "using_graph": "movies"
     },
     "Model": {
         "using": "PartRotSymmetricVAE",

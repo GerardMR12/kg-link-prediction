@@ -36,6 +36,7 @@ if __name__ == "__main__":
         # Set the public credentials
         creden = {}
         creden["neoflix"] = {"uri": "neo4j+s://demo.neo4jlabs.com", "username": "neoflix", "password": "neoflix"}
+        creden["movies"] = {"uri": "neo4j+s://demo.neo4jlabs.com", "username": "movies", "password": "movies"}
 
         # Set the private credentials (given in .env file)
         load_dotenv()
@@ -48,7 +49,7 @@ if __name__ == "__main__":
         driver = GraphDatabase.driver(creden[conf.using_graph]["uri"], auth=(creden[conf.using_graph]["username"], creden[conf.using_graph]["password"]))
 
         # Create a graph instance
-        graph = GraphInstance(driver, build_graph=False)
+        graph = GraphInstance(driver)
 
         # Create the link prediction object
         link = LinkPrediction(graph, conf, debug=debug, gpu_device=gpu_device, save_path=args.save)
