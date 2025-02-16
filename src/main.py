@@ -11,6 +11,29 @@ from scripts.utils import DataFromJSON
 from scripts.graph import GraphInstance
 from scripts.link import LinkPrediction
 
+# Define a function to retrieve credentials from environment variables
+def get_credentials():
+    if using_graph.lower() == "private":
+        return {
+            "uri": os.getenv("NEO4J_URI"),
+            "username": os.getenv("NEO4J_USERNAME"),
+            "password": os.getenv("NEO4J_PASSWORD")
+        }
+    elif using_graph.lower() == "neoflix":
+        return {
+            "uri": os.getenv("NEO4J_NEOFLIX_URI"),
+            "username": os.getenv("NEO4J_NEOFLIX_USERNAME"),
+            "password": os.getenv("NEO4J_NEOFLIX_PASSWORD")
+        }
+    elif using_graph.lower() == "movies":
+        return {
+            "uri": os.getenv("NEO4J_MOVIES_URI"),
+            "username": os.getenv("NEO4J_MOVIES_USERNAME"),
+            "password": os.getenv("NEO4J_MOVIES_PASSWORD")
+        }
+    else:
+        raise ValueError("Unknown graph configuration")
+
 if __name__ == "__main__":
     try:
         # Check if CUDA is available
@@ -33,20 +56,24 @@ if __name__ == "__main__":
             json_dict = json.load(file)
             conf = DataFromJSON(json_dict, "configuration_file")
 
-        # Set the public credentials
-        creden = {}
-        creden["neoflix"] = {"uri": "neo4j+s://demo.neo4jlabs.com", "username": "neoflix", "password": "neoflix"}
-        creden["movies"] = {"uri": "neo4j+s://demo.neo4jlabs.com", "username": "movies", "password": "movies"}
-
-        # Set the private credentials (given in .env file)
+        # Load environment variables from .env file
         load_dotenv()
-        creden[".env"] = {"uri": os.getenv("NEO4J_URI"), "username": os.getenv("NEO4J_USERNAME"), "password": os.getenv("NEO4J_PASSWORD")}
 
-        # Debug flag
-        debug = False
+        # Decide which graph to use based on an environment variable (or any configuration logic)
+        using_graph = os.getenv("USING_GRAPH", "movies")  # default to private if not set
 
-        # Create a connection
-        driver = GraphDatabase.driver(creden[conf.using_graph]["uri"], auth=(creden[conf.using_graph]["username"], creden[conf.using_graph]["password"]))
+        # Get the credentials based on the chosen configuration
+        credentials = get_credentials()
+
+        # Optionally, avoid printing credentials to debug/log output
+        debug = os.getenv("DEBUG", "False").lower() in ("true", "1")
+
+        if debug:
+            print("Using graph:", using_graph)
+            print("Credentials loaded successfully (values hidden).")
+
+        # Create a connection to the database
+        driver = GraphDatabase.driver(credentials["uri"], auth=(credentials["username"], credentials["password"]))
 
         # Create a graph instance
         graph = GraphInstance(driver)
