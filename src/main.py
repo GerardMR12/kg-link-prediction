@@ -11,29 +11,6 @@ from scripts.utils import DataFromJSON
 from scripts.graph import GraphInstance
 from scripts.link import LinkPrediction
 
-# Define a function to retrieve credentials from environment variables
-def get_credentials():
-    if using_graph.lower() == "private":
-        return {
-            "uri": os.getenv("NEO4J_URI"),
-            "username": os.getenv("NEO4J_USERNAME"),
-            "password": os.getenv("NEO4J_PASSWORD")
-        }
-    elif using_graph.lower() == "neoflix":
-        return {
-            "uri": os.getenv("NEO4J_NEOFLIX_URI"),
-            "username": os.getenv("NEO4J_NEOFLIX_USERNAME"),
-            "password": os.getenv("NEO4J_NEOFLIX_PASSWORD")
-        }
-    elif using_graph.lower() == "movies":
-        return {
-            "uri": os.getenv("NEO4J_MOVIES_URI"),
-            "username": os.getenv("NEO4J_MOVIES_USERNAME"),
-            "password": os.getenv("NEO4J_MOVIES_PASSWORD")
-        }
-    else:
-        raise ValueError("Unknown graph configuration")
-
 if __name__ == "__main__":
     try:
         # Check if CUDA is available
@@ -63,7 +40,11 @@ if __name__ == "__main__":
         using_graph = os.getenv("USING_GRAPH", "movies")  # default to private if not set
 
         # Get the credentials based on the chosen configuration
-        credentials = get_credentials()
+        credentials = {
+            "uri": os.getenv("NEO4J_URI_" + using_graph.upper()),
+            "username": os.getenv("NEO4J_USERNAME_" + using_graph.upper()),
+            "password": os.getenv("NEO4J_PASSWORD_" + using_graph.upper())
+        }
 
         # Optionally, avoid printing credentials to debug/log output
         debug = os.getenv("DEBUG", "False").lower() in ("true", "1")
