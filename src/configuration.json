@@ -27,7 +27,7 @@
             },
             {
                 "name": "RotTransformer",
-                "needed_dicts": [],
+                "needed_dicts": ["nodes"],
                 "n_embed": 256,
                 "triplet_trans_heads": 10,
                 "triplet_trans_layers": 6, 
